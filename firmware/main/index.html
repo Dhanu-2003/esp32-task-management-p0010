@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaskDeck — ESP32</title>
+<style>
+:root{color-scheme:light dark}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0 auto;max-width:640px;padding:12px}
+h1{font-size:1.3rem;margin:.2em 0}
+#add{display:flex;gap:8px;margin:12px 0}
+#title{flex:1;padding:10px;font-size:1rem}
+select,button{padding:10px;font-size:1rem}
+#filters{display:flex;gap:8px;margin:8px 0}
+#filters button[aria-pressed="true"]{font-weight:bold;text-decoration:underline}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;align-items:center;gap:8px;padding:10px 4px;border-bottom:1px solid #8884}
+li.done .t{text-decoration:line-through;opacity:.6}
+.t{flex:1;word-break:break-word}
+.prio{font-size:.75rem;border:1px solid #8888;border-radius:8px;padding:1px 6px;white-space:nowrap}
+.icon{background:none;border:none;font-size:1.1rem;padding:6px;cursor:pointer}
+#status{font-size:.85rem;opacity:.75;margin-top:16px;white-space:pre-wrap}
+#wifi{margin-top:20px;border-top:1px solid #8884;padding-top:12px}
+#wifi input{padding:8px;margin:4px 4px 4px 0}
+.err{color:#c00}
+</style>
+</head>
+<body>
+<h1>TaskDeck <small style="font-weight:normal">on ESP32</small></h1>
+<div id="add">
+<input id="title" maxlength="120" placeholder="New task…" autocomplete="off">
+<select id="prio" aria-label="Priority">
+<option value="0">Low</option>
+<option value="1" selected>Normal</option>
+<option value="2">High</option>
+</select>
+<button id="addbtn">Add</button>
+</div>
+<div id="filters" role="group" aria-label="Filter">
+<button data-f="all" aria-pressed="true">All</button>
+<button data-f="active" aria-pressed="false">Active</button>
+<button data-f="done" aria-pressed="false">Done</button>
+<span id="count" style="margin-left:auto;align-self:center"></span>
+</div>
+<ul id="list"></ul>
+<div id="wifi">
+<h2 style="font-size:1.05rem">Wi-Fi</h2>
+<div id="wstatus">…</div>
+<form id="wform">
+<input id="ssid" maxlength="32" placeholder="Home Wi-Fi name" autocomplete="off">
+<input id="pass" maxlength="64" type="password" placeholder="Password (optional)">
+<button type="submit">Join</button>
+</form>
+</div>
+<div id="status" role="status"></div>
+<script>
+"use strict";
+let tasks=[], filter="all";
+const $=id=>document.getElementById(id);
+const list=$("list"), status=$("status");
+function say(m,isErr){status.textContent=m;status.className=isErr?"err":"";}
+async function api(path,opts){
+  const r=await fetch(path,opts);
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error((j&&j.error)||("HTTP "+r.status));
+  return j;
+}
+async function reload(){
+  try{
+    const j=await api("/api/tasks");
+    tasks=j.tasks||[];
+    render();
+  }catch(e){say("Load failed: "+e.message,true);}
+}
+function render(){
+  list.textContent="";
+  const shown=tasks.filter(t=>filter==="all"||(filter==="done")===!!t.done);
+  $("count").textContent=tasks.filter(t=>!t.done).length+" open / "+tasks.length;
+  document.querySelectorAll("#filters button").forEach(b=>
+    b.setAttribute("aria-pressed",String(b.dataset.f===filter)));
+  for(const t of shown){
+    const li=document.createElement("li");
+    if(t.done)li.className="done";
+    const cb=document.createElement("input");
+    cb.type="checkbox";cb.checked=!!t.done;cb.setAttribute("aria-label","Done");
+    cb.onchange=()=>mutate("/api/tasks/"+t.id+"/toggle",{method:"POST"});
+    const span=document.createElement("span");
+    span.className="t";span.textContent=t.title; // textContent: no HTML injection
+    const pr=document.createElement("span");
+    pr.className="prio";pr.textContent=["Low","Normal","High"][t.priority]||"";
+    const eb=document.createElement("button");
+    eb.className="icon";eb.textContent="✎";eb.title="Edit";eb.setAttribute("aria-label","Edit");
+    eb.onclick=()=>{
+      const nt=prompt("Edit task:",t.title);
+      if(nt===null)return;
+      if(!nt.trim()){say("Title cannot be empty",true);return;}
+      mutate("/api/tasks/"+t.id,{method:"PUT",body:{title:nt.trim().slice(0,120)}});
+    };
+    const db=document.createElement("button");
+    db.className="icon";db.textContent="🗑";db.title="Delete";db.setAttribute("aria-label","Delete");
+    db.onclick=()=>{if(confirm("Delete this task?"))mutate("/api/tasks/"+t.id,{method:"DELETE"});};
+    li.append(cb,span,pr,eb,db);
+    list.append(li);
+  }
+}
+async function mutate(path,opts){
+  try{
+    opts=opts||{};
+    if(opts.body&&typeof opts.body!=="string")
+      opts={method:opts.method,headers:{"Content-Type":"application/json"},body:JSON.stringify(opts.body)};
+    const j=await api(path,opts);
+    if(j.tasks){tasks=j.tasks;render();}
+    else await reload();
+    say("");
+  }catch(e){say("Failed: "+e.message,true);}
+}
+$("addbtn").onclick=async()=>{
+  const ti=$("title"),v=ti.value.trim();
+  if(!v){say("Type a task first",true);return;}
+  try{
+    const one=await api("/api/tasks",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({title:v.slice(0,120),priority:+$("prio").value})});
+    ti.value="";ti.focus();
+    await reload();say("");
+  }catch(e){say("Add failed: "+e.message,true);}
+};
+$("title").addEventListener("keydown",e=>{if(e.key==="Enter")$("addbtn").click();});
+document.querySelectorAll("#filters button").forEach(b=>b.onclick=()=>{filter=b.dataset.f;render();});
+$("wform").onsubmit=async e=>{
+  e.preventDefault();
+  try{
+    await api("/api/wifi",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({ssid:$("ssid").value.trim(),pass:$("pass").value})});
+    say("Joining… check status below.");wstatus();
+  }catch(e2){say("Wi-Fi save failed: "+e2.message,true);}
+};
+async function wstatus(){
+  try{
+    const w=await api("/api/wifi");
+    $("wstatus").textContent="AP clients: "+w.ap_clients+
+      (w.sta_ssid?" | Home: "+w.sta_ssid+(w.sta_connected?" ("+w.sta_ip+")":" (connecting…)"):" | Home Wi-Fi not set");
+  }catch(e){$("wstatus").textContent="Wi-Fi status unavailable";}
+}
+reload();wstatus();setInterval(wstatus,10000);
+</script>
+</body>
+</html>

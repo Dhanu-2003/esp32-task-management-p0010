@@ -210,9 +210,10 @@ to limit NVS wear.
 - Files: `.gitignore`, `README.md`, `LICENSE`, `CHANGELOG.md`, `firmware/**`, `scripts/**`.
 
 ### Step 3 — Core (API + web + persistence, no display yet)
-- [ ] `task_store` (NVS JSON, mutex, 100-cap, validation) + `api.c` + `http_server`
+- [x] `task_store` (NVS JSON, mutex, 100-cap, validation) + `api.c` + `http_server`
   + `index.html` (CRUD/filter) + APSTA Wi-Fi + SNTP fallback.
-- [ ] Build passes (`idf.bat build`).
+- [x] Build passes (`idf.bat build` — via `scripts/idf_cmd.ps1`; found `json` moved to
+  managed component `espressif/cjson` in v6.1, added to `main/idf_component.yml`).
 - Done when: API contract works (verified by build + host-side JSON unit smoke where possible;
   HW test deferred to step 5/6 if no board).
 - Files: `firmware/main/task_store.*`, `api.c`, `http_server.*`, `index.html`, `wifi_apsta.*`.
