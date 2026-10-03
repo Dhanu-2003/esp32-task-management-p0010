@@ -13,6 +13,9 @@ __pycache__/
 build_log.txt
 boot.log
 uart.log
+*_log.txt
+*_build*.txt
+export_*.txt
 # OS / editor
 .DS_Store
 Thumbs.db
