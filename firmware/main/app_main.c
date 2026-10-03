@@ -21,11 +21,22 @@ void app_main(void)
     }
 
     ESP_ERROR_CHECK(task_store_init());
-    ESP_ERROR_CHECK(wifi_apsta_start());
-    ESP_ERROR_CHECK(http_server_start());
+
+    // Wi-Fi is optional: an ESP32-P4 has no radio unless a coprocessor is wired
+    // in. Without it the device still runs the full OLED + buttons interface.
+    esp_err_t wifi_err = wifi_apsta_start();
+    bool web_up = false;
+    if (wifi_err == ESP_OK) {
+        ESP_ERROR_CHECK(http_server_start());
+        web_up = true;
+    } else {
+        ESP_LOGW(TAG, "web UI disabled (no Wi-Fi); OLED + buttons only");
+    }
     ui_oled_start(); // continues headless if no display is wired
 
-    ESP_LOGI(TAG, "TASKDECK up ap=192.168.4.1 tasks=%d", task_store_count());
+    ESP_LOGI(TAG, "TASKDECK up ap=%s tasks=%d web=%s",
+             web_up ? "192.168.4.1" : "off", task_store_count(),
+             web_up ? "on" : "off");
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(30000));
         ESP_LOGI(TAG, "TASKDECK heartbeat tasks=%d", task_store_count());

@@ -13,11 +13,18 @@ __pycache__/
 build_log.txt
 boot.log
 uart.log
+boot*.log
+flash*.txt
+set_*.txt
+setp4*.txt
+set-target*.txt
 *_log.txt
 *_build*.txt
 build_*.txt
+build_p4*.txt
 adddep*.txt
 export_*.txt
+fc*.txt
 # OS / editor
 .DS_Store
 Thumbs.db

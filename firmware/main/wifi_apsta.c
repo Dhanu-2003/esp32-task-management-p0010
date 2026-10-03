@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "cJSON.h"
+#include "esp_check.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_netif.h"
@@ -91,17 +92,29 @@ static void on_ip_event(void *arg, esp_event_base_t base, int32_t id, void *data
 
 esp_err_t wifi_apsta_start(void)
 {
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    ESP_RETURN_ON_ERROR(esp_netif_init(), TAG, "netif init failed");
+    ESP_RETURN_ON_ERROR(esp_event_loop_create_default(), TAG, "event loop failed");
     s_ap = esp_netif_create_default_wifi_ap();
     s_sta = esp_netif_create_default_wifi_sta();
 
     wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&init));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
-                                                        on_wifi_event, NULL, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
-                                                        on_ip_event, NULL, NULL));
+    // Not ESP_ERROR_CHECK: the ESP32-P4 has no Wi-Fi radio of its own. When no
+    // Wi-Fi is available (or the coprocessor is missing) we must keep running on
+    // the OLED/buttons instead of aborting the whole device at boot.
+    esp_err_t err = esp_wifi_init(&init);
+    if (err != ESP_OK) {
+        s_ap = NULL;
+        s_sta = NULL;
+        ESP_LOGW(TAG, "no Wi-Fi radio available (%s); running on-device UI only",
+                 esp_err_to_name(err));
+        return ESP_ERR_NOT_FOUND;
+    }
+    ESP_RETURN_ON_ERROR(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                                                           on_wifi_event, NULL, NULL),
+                        TAG, "wifi handler failed");
+    ESP_RETURN_ON_ERROR(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
+                                                           on_ip_event, NULL, NULL),
+                        TAG, "ip handler failed");
 
     char sta_pass[MAX_PASS + 1] = "";
     load_sta_creds(s_sta_ssid, sizeof(s_sta_ssid), sta_pass, sizeof(sta_pass));
@@ -125,10 +138,10 @@ esp_err_t wifi_apsta_start(void)
     }
     memset(sta_pass, 0, sizeof(sta_pass));
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_cfg));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_cfg));
-    ESP_ERROR_CHECK(esp_wifi_start());
+    ESP_RETURN_ON_ERROR(esp_wifi_set_mode(WIFI_MODE_APSTA), TAG, "set mode failed");
+    ESP_RETURN_ON_ERROR(esp_wifi_set_config(WIFI_IF_AP, &ap_cfg), TAG, "ap config failed");
+    ESP_RETURN_ON_ERROR(esp_wifi_set_config(WIFI_IF_STA, &sta_cfg), TAG, "sta config failed");
+    ESP_RETURN_ON_ERROR(esp_wifi_start(), TAG, "wifi start failed");
     ESP_LOGI(TAG, "AP up ssid=%s ip=%s%s", CONFIG_TASK_AP_SSID, s_ap_ip,
              s_sta_ssid[0] ? " (+STA)" : " (STA not configured)");
     return ESP_OK;

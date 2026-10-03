@@ -1,0 +1,17 @@
+# ESP32-P4 specific defaults. The P4 has no built-in Wi-Fi radio, so it takes its
+# Wi-Fi from an ESP32-C6 coprocessor over SDIO (esp_wifi_remote + esp_hosted, pulled
+# in by main/idf_component.yml for this target only).
+
+# The board connected on COM21 is an ESP32-P4 with silicon revision v1.3. Revisions
+# <3.0 and >=3.0 have a "huge hardware difference" in IDF and only one can be
+# selected at a time. Uncomment the two lines below to build for early P4 silicon
+# (rev 0.x/1.x); comment them out for a rev >=3.0 board.
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+CONFIG_ESP32P4_REV_MIN_100=y
+
+# Wi-Fi via the C6 coprocessor. Both already default to these values on the P4; they
+# are set explicitly here so the intent is visible. The C6 must carry ESP-Hosted
+# slave firmware (pre-flashed on e.g. the ESP32-P4-Function-EV-Board).
+CONFIG_ESP_WIFI_REMOTE_ENABLED=y
+CONFIG_SLAVE_IDF_TARGET_ESP32C6=y
+CONFIG_ESP_WIFI_REMOTE_LIBRARY_HOSTED=y

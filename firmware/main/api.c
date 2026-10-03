@@ -300,11 +300,29 @@ static esp_err_t on_reset_post(httpd_req_t *req)
     return send_json(req, 200, "{\"ok\":true}");
 }
 
+static const char *method_name(httpd_method_t m)
+{
+    switch (m) {
+    case HTTP_GET:
+        return "GET";
+    case HTTP_POST:
+        return "POST";
+    case HTTP_PUT:
+        return "PUT";
+    case HTTP_DELETE:
+        return "DELETE";
+    default:
+        return "?";
+    }
+}
+
 esp_err_t http_server_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 8192;
     config.uri_match_fn = httpd_uri_match_wildcard;
+    // HTTPD_DEFAULT_CONFIG allows only 8 handlers; we register 9.
+    config.max_uri_handlers = 16;
     httpd_handle_t server = NULL;
     ESP_ERROR_CHECK(httpd_start(&server, &config));
 
@@ -320,7 +338,14 @@ esp_err_t http_server_start(void)
         {.uri = "/api/reset", .method = HTTP_POST, .handler = on_reset_post},
     };
     for (size_t i = 0; i < sizeof(routes) / sizeof(routes[0]); i++) {
-        ESP_ERROR_CHECK(httpd_register_uri_handler(server, &routes[i]));
+        esp_err_t err = httpd_register_uri_handler(server, &routes[i]);
+        if (err != ESP_OK) {
+            // Do not abort the device over one missing route: log it and carry on
+            // with the rest (e.g. ESP_ERR_HTTPD_HANDLERS_FULL if the configured
+            // handler limit is too low for the route table).
+            ESP_LOGE(TAG, "route %s %s not registered: %s", routes[i].uri,
+                     method_name(routes[i].method), esp_err_to_name(err));
+        }
     }
     ESP_LOGI(TAG, "web UI on http://192.168.4.1/");
     return ESP_OK;
