@@ -77,12 +77,14 @@ buttons) so daily use — view, check-off, add, delete — needs no second devic
 | D6 | Wi-Fi: APSTA — AP always on + optional STA client | Device must work in the street (no home Wi-Fi) and at home (LAN access + SNTP time) |
 | D7 | Single-file gzipped HTML embedded via `EMBED_TXTFILE` | Works with zero filesystem; loads fast on AP |
 | D8 | No auth on AP in v1 (physical proximity = auth); optional `CONFIG_TASK_AP_PASS` | Login over open HTTP adds little; documented |
-| D9 | Default target `esp32`; probe actual board at build step with `nova_ports(probe=true)` and `set-target` accordingly | No board is connected right now (checked 2026-10-03, `nova_ports` = `[]`); must not guess COM/target |
+| D9 | **Target changed during step 5:** the connected board (COM21) is an **ESP32-P4, silicon rev v1.3**, not a plain ESP32. The P4 has no Wi-Fi radio, so Wi-Fi comes from the **ESP32-C6 coprocessor on the board over SDIO** (`espressif/esp_wifi_remote` + `espressif/esp_hosted`, pulled in only for `esp32p4`/`esp32h2` by `rules:` in `main/idf_component.yml`; no application code changes needed). Plain ESP32 stays a supported fallback target. User's decision (2026-10-03): build both paths | Never guess the chip: `nova_ports(probe=true)` identified it. Two IDF quirks had to be handled: (a) rev<3 and rev>=3 P4 silicon are mutually exclusive in IDF → `CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y` + `CONFIG_ESP32P4_REV_MIN_100=y` in `sdkconfig.defaults.esp32p4`; (b) that path only supports 40/90/180/360 MHz, so the default 400 MHz tripped `assert(res)` in `esp_clk_init` and rebooted the chip in a loop → the target-specific defaults file makes Kconfig pick 360 MHz |
 | D10 | Time: `sntp` only when STA connected; else boot-count + `esp_timer` ordering | Correct wall-clock impossible fully offline; ordering preserved |
 
-**Assumptions (to confirm with user via bot only if blocking):** user has (or will get) any
-ESP32 devkit + SSD1306 OLED + 3 buttons/breadboard; USB power is fine; 100-task cap is fine;
-open AP is acceptable.
+**Assumptions (confirmed or corrected by hardware on 2026-10-03):** the user's board is an
+**ESP32-P4 rev v1.3 with an ESP32-C6 coprocessor** (verified working over SDIO); it has **no
+OLED wired yet** (firmware runs headless); USB power is fine; 100-task cap is fine; open AP is
+acceptable. Original assumption of "any ESP32 devkit" replaced: plain ESP32 is still supported
+as a fallback target but is not the user's board.
 
 ## 4. Architecture
 
@@ -155,8 +157,9 @@ to limit NVS wear.
 
 - Empty list → OLED "No tasks — hold SELECT to add"; web shows empty-state + Add box focused.
 - Title empty / >120 chars / bad JSON → `400 {error}`; OLED ignores; never panics.
-- Duplicate boot / power cut mid-write → NVS loaded at boot with cJSON validation; corrupt →
-  backup key `db_bak`, start empty + log `E TASK corrupt NVS, reset`.
+- Power cut mid-write → NVS is documented power-fail safe (only an in-flight write can be lost),
+  so no hand-rolled backup copy is kept: it would halve the free pages NVS needs to compact.
+  A payload that does not parse is logged and the store starts empty rather than crashing.
 - AP clients = 0 for hours → still runs; HTTP idle timeout 30 s.
 - STA password wrong → after 3 fails, stay AP-only, OLED shows `STA fail`, web reports status.
 - 100-task cap → POST returns `413 {error:"task limit 100"}`; OLED beep-equivalent (invert flash).
@@ -228,14 +231,24 @@ to limit NVS wear.
 - Files: `firmware/main/ui_oled.*`, `buttons.*`, `components/ssd1306/**`, `README.md`, `CHANGELOG.md`.
 
 ### Step 5 — Build and run (flash the board)
-- [x] `nova_ports(probe=true)` → **no ports; no board connected.**
-- [x] `set-target esp32` + `build` clean (886 KB image, zero warnings in project files).
-- [x] Review pass while blocked: fixed 3 real defects (ignored custom partition table →
-  NVS was 24 KB and the 100-task promise was unachievable, now 64 KB and verified in the
-  built table; dead backup-restore path; redundant flash writes) and verified the NVS blob
-  limits against the local IDF source/docs.
-- [ ] Flash `idf.bat -p COMx flash` (explicit port) + 20 s serial capture → `TASKDECK up`.
-- Done when: flashed + boot log shows AP up. **Blocked: no board connected** (reported urgent).
+- [x] `nova_ports(probe=true)` → board on **COM21**, identified by esptool as **ESP32-P4 rev v1.3**.
+- [x] `set-target esp32p4` + `build` clean (479 KB image, zero warnings in project files).
+- [x] Three real bring-up bugs found and fixed by flashing:
+  1. Boot loop `assert failed: esp_clk_init clk.c:105` — early P4 silicon cannot run at the
+     default 400 MHz; `sdkconfig.defaults.esp32p4` selects rev<3 so Kconfig picks 360 MHz.
+  2. Crash inside `esp_wifi_init` (P4 has no radio of its own) because of `ESP_ERROR_CHECK`.
+     Wi-Fi failure is now non-fatal: log it and run OLED/buttons only.
+  3. `ESP_ERR_HTTPD_HANDLERS_FULL` — 9 routes against the default limit of 8, so
+     `POST /api/reset` was silently missing. `max_uri_handlers` is a struct field in IDF v6.1
+     (not Kconfig), so it is set to 16 in code; registration failures no longer abort.
+- [x] Flashed and booted: `TASKDECK up ap=192.168.4.1 tasks=0 web=on`, `AP up ssid=ESP-TASKMGR`,
+  DHCP server started, 30 s heartbeat, no reset loop.
+- [x] Wi-Fi over the C6 coprocessor verified on hardware (`WLAN over SDIO`,
+  `esp-hosted fw versions: host=3.0.9 coprocessor=0.0.0`).
+- [x] Plain-ESP32 fallback target also builds clean (`set-target esp32`, 887 KB).
+- [x] NVS fixes + verified limits (64 KB partition; blob limit ~59.9 KB; full store ~18 KB).
+- Done when: flashed + boot log shows AP up. **Achieved.**
+- Files: `firmware/sdkconfig.defaults.esp32p4`, `partitions.csv`, `RUNNING.md`, `TESTING.md`.
 
 ### Step 6 — Test (manual T1–T6)
 - [ ] Run T1–T5, fix failures, rebuild/reflash; single `check` to user for OLED/buttons.
