@@ -26,6 +26,8 @@ static size_t s_count = 0;
 static uint32_t s_seq = 0;
 static esp_timer_handle_t s_save_timer;
 static bool s_save_pending = false;
+// Last payload that nvs_commit() succeeded for: lets us skip pointless writes.
+static char *last_json;
 
 static void save_now_locked(void)
 {
@@ -55,6 +57,18 @@ static void save_now_locked(void)
         nvs_close(h);
         return;
     }
+    // Nothing changed since the last committed payload: skip the write entirely
+    // (also keeps flash wear down when the OLED redraws an unchanged list).
+    if (last_json && !strcmp(last_json, json)) {
+        free(json);
+        nvs_close(h);
+        return;
+    }
+    // Keep the previously committed payload as the backup, so a torn write can be
+    // recovered at next boot.
+    if (last_json) {
+        nvs_set_blob(h, NVS_KEY_BAK, last_json, strlen(last_json) + 1);
+    }
     esp_err_t err = nvs_set_blob(h, NVS_KEY, json, strlen(json) + 1);
     if (err == ESP_OK) {
         err = nvs_commit(h);
@@ -62,8 +76,13 @@ static void save_now_locked(void)
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "NVS save failed: %s (tasks=%u, bytes=%u)",
                  esp_err_to_name(err), (unsigned)s_count, (unsigned)strlen(json));
+        free(json);
+        free(last_json);
+        last_json = NULL;
+    } else {
+        free(last_json);
+        last_json = json;
     }
-    free(json);
     nvs_close(h);
 }
 
@@ -169,12 +188,19 @@ esp_err_t task_store_init(void)
     }
     size_t len = 0;
     bool loaded = false;
+    char *loaded_raw = NULL;
     if (nvs_get_blob(h, NVS_KEY, NULL, &len) == ESP_OK && len > 1 && len < 128 * 1024) {
         char *buf = malloc(len);
         if (buf && nvs_get_blob(h, NVS_KEY, buf, &len) == ESP_OK) {
             loaded = parse_db(buf);
+            if (loaded) {
+                loaded_raw = buf; // keep as the last-known-committed payload
+            } else {
+                free(buf);
+            }
+        } else {
+            free(buf);
         }
-        free(buf);
     }
     if (!loaded) {
         // Try the backup copy before giving up.
@@ -189,6 +215,8 @@ esp_err_t task_store_init(void)
         }
     }
     nvs_close(h);
+    free(last_json);
+    last_json = loaded_raw;
     if (!loaded) {
         ESP_LOGE(TAG, "task db corrupt or missing, starting empty");
         s_count = 0;

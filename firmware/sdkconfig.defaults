@@ -2,3 +2,10 @@
 CONFIG_TASK_AP_SSID="ESP-TASKMGR"
 CONFIG_TASK_AP_PASS=""
 CONFIG_TASK_AP_MAX_CONN=4
+
+# Use our own partition table (64 KB NVS for the task store) instead of the
+# single-app default. Without this, partitions.csv is silently ignored.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_CUSTOM_ALIGN=0x10000
+CONFIG_PARTITION_TABLE_OFFSET=0x8000
