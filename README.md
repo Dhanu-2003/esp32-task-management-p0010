@@ -15,12 +15,16 @@ served as an offline website (`http://192.168.4.1/`) whenever a phone/laptop bro
 | SSD1306 128×64 OLED, I2C addr 0x3C | SDA GPIO21, SCL GPIO22, VCC 3V3, GND GND |
 | Button UP / DOWN / SELECT (active-low, `INPUT_PULLUP`) | GPIO15 / GPIO2 / GPIO4 to GND |
 
-## Quick start (full instructions land with step 5)
+## Build (this laptop)
 
-```bat
-C:/nova/agent/idf.bat set-target esp32
-C:/nova/agent/idf.bat build
-C:/nova/agent/idf.bat -p COM7 flash
+The stock wrapper needs the working environment first — always build via the helper
+(python.exe on PATH + space-free tools junction, see `scripts/idf_cmd.ps1`):
+
+```powershell
+cd firmware
+powershell ..\scripts\idf_cmd.ps1 set-target esp32
+powershell ..\scripts\idf_cmd.ps1 build
+powershell ..\scripts\idf_cmd.ps1 -p COM7 flash
 ```
 
 Then join Wi-Fi `ESP-TASKMGR` and open `http://192.168.4.1/`.

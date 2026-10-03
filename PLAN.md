@@ -196,12 +196,16 @@ to limit NVS wear.
 - Done when: report accepted. Files: `PLAN.md`.
 
 ### Step 2 — Setup
-- [ ] `git init -b main`, `.gitignore` (IDF: `build/`, `sdkconfig`, `.venv`), README skeleton,
+- [x] `git init -b main`, `.gitignore` (IDF: `build/`, `sdkconfig`, `.venv`), README skeleton,
   LICENSE (MIT), CHANGELOG skeleton.
-- [ ] Scaffold `firmware/` from `restful_server` pattern (CMake, `app_main`, Kconfig, `pins.h`).
-- [ ] Vendor minimal `ssd1306` component with credit; add `scripts/read_log.py`.
-- [ ] `gh repo create Dhanu-2003/esp32-task-management-p0010 --private --source . ...`,
+- [x] Scaffold `firmware/` from `restful_server` pattern (CMake, `app_main`, Kconfig, `pins.h`).
+- [x] Vendor minimal `ssd1306` component with credit; add `scripts/read_log.py`.
+- [x] `gh repo create Dhanu-2003/esp32-task-management-p0010 --private --source . ...`,
   first commit + push; topics.
+- [x] Toolchain fix (found during setup): stock `idf.bat` fails on this laptop —
+  `python.exe` not on PATH and `xtensa-esp32-elf-gcc` shim panics on spaces in
+  `C:\Users\Dhanu S\...`. Fix: `C:\nova\.home\espressif` junction + `scripts/idf_cmd.ps1`
+  helper. Scaffold builds clean (`Project build complete`, LASTEXIT=0).
 - Done when: repo exists (or local git + reported blocker), project listed, first push on main.
 - Files: `.gitignore`, `README.md`, `LICENSE`, `CHANGELOG.md`, `firmware/**`, `scripts/**`.
 
