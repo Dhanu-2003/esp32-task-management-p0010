@@ -219,12 +219,13 @@ to limit NVS wear.
 - Files: `firmware/main/task_store.*`, `api.c`, `http_server.*`, `index.html`, `wifi_apsta.*`.
 
 ### Step 4 — Features (OLED + buttons + polish + error handling)
-- [ ] `ssd1306` driver wire-up, `ui_oled` (list/detail/menu/splash/reset),
-  `buttons` (debounce/short/long), factory reset, Wi-Fi setup section in web UI,
+- [x] `ssd1306` driver (I2C master API, embedded 5x7 font), `ui_oled` (list/detail/menu/splash/reset),
+  `buttons` (debounce/short/long), factory reset (boot-time + `POST /api/reset`), Wi-Fi setup section in web UI,
   empty states, 400/413 errors, HTML escaping, status bar.
-- [ ] README wiring table + photos placeholder; CHANGELOG update.
+- [x] README wiring table + photos placeholder; CHANGELOG update.
+- [x] Build passes clean; code review pass (delegate `review`).
 - Done when: builds clean; code review pass (delegate `review`).
-- Files: `firmware/main/ui_oled.*`, `buttons.*`, `components/ssd1306/**`, `README.md`.
+- Files: `firmware/main/ui_oled.*`, `buttons.*`, `components/ssd1306/**`, `README.md`, `CHANGELOG.md`.
 
 ### Step 5 — Build and run (flash the board)
 - [ ] `nova_ports(probe=true)` → `set-target` to actual chip → `idf.bat build`.

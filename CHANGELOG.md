@@ -13,5 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   REST API (`/api/tasks`, `/api/wifi`), offline single-page web UI, APSTA Wi-Fi
   with optional home-router join and SNTP time sync.
 - Managed dependency `espressif/cjson`; `scripts/idf_cmd.ps1` build helper.
+- Features: SSD1306 OLED task list with menu (quick-add, delete, reset),
+  debounced UP/DOWN/SELECT buttons with long-press, boot-time factory reset,
+  `POST /api/reset`, headless fallback without display.
 
 ## [1.0.0] — to be released at delivery (step 7)

@@ -293,6 +293,13 @@ static esp_err_t on_wifi_post(httpd_req_t *req)
     return r;
 }
 
+static esp_err_t on_reset_post(httpd_req_t *req)
+{
+    (void)req;
+    task_store_clear();
+    return send_json(req, 200, "{\"ok\":true}");
+}
+
 esp_err_t http_server_start(void)
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -310,6 +317,7 @@ esp_err_t http_server_start(void)
         {.uri = "/api/tasks/*", .method = HTTP_POST, .handler = on_task_item},
         {.uri = "/api/wifi", .method = HTTP_GET, .handler = on_wifi_get},
         {.uri = "/api/wifi", .method = HTTP_POST, .handler = on_wifi_post},
+        {.uri = "/api/reset", .method = HTTP_POST, .handler = on_reset_post},
     };
     for (size_t i = 0; i < sizeof(routes) / sizeof(routes[0]); i++) {
         ESP_ERROR_CHECK(httpd_register_uri_handler(server, &routes[i]));

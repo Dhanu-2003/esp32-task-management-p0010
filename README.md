@@ -15,6 +15,17 @@ served as an offline website (`http://192.168.4.1/`) whenever a phone/laptop bro
 | SSD1306 128×64 OLED, I2C addr 0x3C | SDA GPIO21, SCL GPIO22, VCC 3V3, GND GND |
 | Button UP / DOWN / SELECT (active-low, `INPUT_PULLUP`) | GPIO15 / GPIO2 / GPIO4 to GND |
 
+Wire each button between its GPIO and GND (no external resistors — internal pull-ups).
+The firmware runs headless if no display is wired (web UI keeps working).
+
+## Using it
+
+- **Carried device (no phone):** OLED lists tasks. UP/DOWN scroll, SELECT ticks off,
+  hold SELECT for the menu (quick-add / delete / reset). Hold SELECT at boot for
+  factory reset.
+- **Browser (when nearby):** join Wi-Fi `ESP-TASKMGR`, open `http://192.168.4.1/`
+  — full editor, filters, priorities, home Wi-Fi setup.
+
 ## Build (this laptop)
 
 The stock wrapper needs the working environment first — always build via the helper

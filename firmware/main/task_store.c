@@ -368,3 +368,19 @@ esp_err_t task_store_flush(void)
     xSemaphoreGive(s_lock);
     return ESP_OK;
 }
+
+esp_err_t task_store_clear(void)
+{
+    if (xSemaphoreTake(s_lock, portMAX_DELAY) != pdTRUE) {
+        return ESP_FAIL;
+    }
+    s_count = 0;
+    if (s_save_pending) {
+        esp_timer_stop(s_save_timer);
+        s_save_pending = false;
+    }
+    save_now_locked();
+    xSemaphoreGive(s_lock);
+    ESP_LOGW(TAG, "all tasks cleared");
+    return ESP_OK;
+}

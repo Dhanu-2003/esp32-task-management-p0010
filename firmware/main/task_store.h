@@ -34,3 +34,5 @@ esp_err_t task_store_delete(uint32_t id);
 esp_err_t task_store_to_json(char **out_json);
 // Force any coalesced write to NVS now.
 esp_err_t task_store_flush(void);
+// Delete all tasks (factory reset). Persists immediately.
+esp_err_t task_store_clear(void);

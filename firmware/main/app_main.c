@@ -1,5 +1,4 @@
-// TaskDeck on ESP32 — step-3 core: NVS -> task store -> Wi-Fi APSTA -> HTTP server.
-// Step 4 adds: SSD1306 OLED + buttons.
+// TaskDeck on ESP32 — step-4 features: OLED + buttons live alongside the web UI.
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_netif.h"
@@ -8,6 +7,7 @@
 #include "http_server.h"
 #include "nvs_flash.h"
 #include "task_store.h"
+#include "ui_oled.h"
 #include "wifi_apsta.h"
 
 static const char *TAG = "taskdeck";
@@ -23,6 +23,7 @@ void app_main(void)
     ESP_ERROR_CHECK(task_store_init());
     ESP_ERROR_CHECK(wifi_apsta_start());
     ESP_ERROR_CHECK(http_server_start());
+    ui_oled_start(); // continues headless if no display is wired
 
     ESP_LOGI(TAG, "TASKDECK up ap=192.168.4.1 tasks=%d", task_store_count());
     while (1) {
