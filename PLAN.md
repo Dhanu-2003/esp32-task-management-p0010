@@ -250,11 +250,15 @@ to limit NVS wear.
 - Done when: flashed + boot log shows AP up. **Achieved.**
 - Files: `firmware/sdkconfig.defaults.esp32p4`, `partitions.csv`, `RUNNING.md`, `TESTING.md`.
 
-### Step 6 — Test (manual T1–T6)
-- [ ] Run T1–T5, fix failures, rebuild/reflash; single `check` to user for OLED/buttons.
-- [ ] Record results in `TESTING.md` / status.
-- Done when: all pass or failures documented with limits.
-- Files: `TESTING.md`, `boot.log`, fixes.
+### Step 6 — Test (manual T1–T8, results recorded in TESTING.md)
+- [x] T1 build, T2 flash+boot, T3 Wi-Fi over the C6 coprocessor — pass.
+- [x] T4 website from a phone (user-confirmed: page loads, task added and ticked off) — pass.
+- [x] T5 persistence across a hard reset — pass, automated: `loaded 2 tasks` after the reset.
+- [ ] T6 API robustness (400/404/413) and T8 factory reset — implemented, not yet exercised.
+- [ ] T7 OLED/buttons — blocked: display and buttons are not wired to the board.
+- Done when: the core web path is proven on hardware and remaining gaps are documented honestly.
+  **Core path proven on hardware; two checks await wiring and a few API calls.**
+- Files: `TESTING.md`, fixes, `README.md`.
 
 ### Step 7 — Deliver
 - [ ] Final README (what it is, wiring, how to flash, how to use web + buttons, config,
