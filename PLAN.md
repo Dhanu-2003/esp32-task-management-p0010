@@ -261,10 +261,11 @@ to limit NVS wear.
 - Files: `TESTING.md`, fixes, `README.md`.
 
 ### Step 7 — Deliver
-- [ ] Final README (what it is, wiring, how to flash, how to use web + buttons, config,
-  limits, future work), CHANGELOG `v1.0.0`, `gh release create v1.0.0`.
-- [ ] Final `nova_report(step=7, done=true)` + TASK ACCOMPLISHED block with manual test steps.
-- Done when: pushed, released, reported.
+- [x] Final README (what it is, wiring, how to flash, how to use web + buttons, config,
+  limits, known gaps, future work), CHANGELOG `v1.0.0` with verified results and limitations.
+- [x] `gh release create v1.0.0`; tag pushed; repo private on `main`; no secrets in the tree.
+- [x] Final `nova_report(step=7, done=true)` + TASK ACCOMPLISHED block with manual test steps.
+- Done when: pushed, released, reported. **Achieved.**
 
 ## 11. Recommendations and future work
 
