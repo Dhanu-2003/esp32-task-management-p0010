@@ -15,7 +15,6 @@
 static const char *TAG = "task_store";
 static const char *NVS_NS = "tasks";
 static const char *NVS_KEY = "db_v1";
-static const char *NVS_KEY_BAK = "db_bak";
 
 // Writes are coalesced to limit NVS wear: mark dirty, flush 500 ms later.
 #define SAVE_DELAY_US 500000
@@ -57,18 +56,16 @@ static void save_now_locked(void)
         nvs_close(h);
         return;
     }
-    // Nothing changed since the last committed payload: skip the write entirely
-    // (also keeps flash wear down when the OLED redraws an unchanged list).
+    // Nothing changed since the last committed payload: skip the write entirely.
+    // (NVS also compares values itself, but this saves building the JSON at all.)
     if (last_json && !strcmp(last_json, json)) {
         free(json);
         nvs_close(h);
         return;
     }
-    // Keep the previously committed payload as the backup, so a torn write can be
-    // recovered at next boot.
-    if (last_json) {
-        nvs_set_blob(h, NVS_KEY_BAK, last_json, strlen(last_json) + 1);
-    }
+    // No separate backup copy is kept on purpose: NVS is documented as power-fail
+    // safe (only an in-flight write can be lost), and a second full copy would
+    // halve the free space that NVS needs to compact this partition.
     esp_err_t err = nvs_set_blob(h, NVS_KEY, json, strlen(json) + 1);
     if (err == ESP_OK) {
         err = nvs_commit(h);
@@ -203,16 +200,8 @@ esp_err_t task_store_init(void)
         }
     }
     if (!loaded) {
-        // Try the backup copy before giving up.
-        len = 0;
-        if (nvs_get_blob(h, NVS_KEY_BAK, NULL, &len) == ESP_OK && len > 1 && len < 128 * 1024) {
-            char *buf = malloc(len);
-            if (buf && nvs_get_blob(h, NVS_KEY_BAK, buf, &len) == ESP_OK) {
-                loaded = parse_db(buf);
-                ESP_LOGW(TAG, "primary db unreadable, restored backup");
-            }
-            free(buf);
-        }
+        // Nothing usable stored yet, or the payload did not parse.
+        loaded_raw = NULL;
     }
     nvs_close(h);
     free(last_json);

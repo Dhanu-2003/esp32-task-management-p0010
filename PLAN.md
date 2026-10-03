@@ -73,7 +73,7 @@ buttons) so daily use — view, check-off, add, delete — needs no second devic
 | D2 | Start from ESP-IDF `examples/protocols/http_server/restful_server` pattern, vendored into `firmware/` (not cloned whole IDF) | Gives correct server/cJSON/NVS wiring; we keep only what we need |
 | D3 | Carry use = OLED + buttons; web UI = full editor when phone/PC nearby | Brief says "don't want to carry laptop/phone" — a hosted website alone still needs a browser. Only a physical UI makes "carry just the ESP" true. Assumption recorded explicitly |
 | D4 | Display: SSD1306 128×64 I2C OLED, addr 0x3C, SDA GPIO21 / SCL GPIO22; buttons: UP GPIO15, DOWN GPIO2, SELECT GPIO4 (all `INPUT_PULLUP`, active-low) | Most common cheap "carry" combo; one header file to rewire. If user's board differs, only `pins.h` changes |
-| D5 | Storage: NVS blob JSON (`tasks` / `db_v1`), cap 100 tasks | Avoids custom partition + LittleFS component fetch in v1; survives reboot; enough for personal tasks; migrate to LittleFS when >100 needed |
+| D5 | Storage: NVS blob JSON (`tasks` / `db_v1`), cap 100 tasks, NVS partition 64 KB | Avoids a custom filesystem in v1; survives reboot; enough for personal tasks. 100 × 120-char titles is ~18 KB, inside the verified 59.9 KB blob limit. Migrate to LittleFS if >100 tasks are ever needed |
 | D6 | Wi-Fi: APSTA — AP always on + optional STA client | Device must work in the street (no home Wi-Fi) and at home (LAN access + SNTP time) |
 | D7 | Single-file gzipped HTML embedded via `EMBED_TXTFILE` | Works with zero filesystem; loads fast on AP |
 | D8 | No auth on AP in v1 (physical proximity = auth); optional `CONFIG_TASK_AP_PASS` | Login over open HTTP adds little; documented |
@@ -144,7 +144,7 @@ to limit NVS wear.
 | Wrong board/display wiring vs user's actual HW | M×H | All pins in `pins.h`; SSD1306 addr configurable; README wiring table + photo request; `set-target` documented |
 | "Website needs a browser" loophole — user hoped to leave phone behind entirely | H×M | Solved by on-device OLED UI for daily ops; README states clearly: full text editing needs browser occasionally |
 | 3-button text entry impractical | M×M | Quick-add placeholder + full edit on web; documented, not hidden |
-| NVS wear / 100-task cap / blob size limit (~4000 B per value on some IDF!) | M×M | Coalesced writes; cap enforced with 413 error; split keys (`db_0..n`) fallback noted; LittleFS migration path |
+| NVS wear / task cap / blob size | M×M | **Verified against IDF v6.1 source and docs:** page 4096 B, entry 32 B, 126 entries/page, single-page chunk max 4000 B; blob limit = min(508000, 97.6% × partition − 4000) → 59,943 B for our 64 KB partition. A full store is ~18 KB, so it fits with room for compaction. Writes are coalesced (500 ms) and skipped entirely when the payload is unchanged (both by us and by NVS itself). NVS partition raised 24 KB → 64 KB. No backup copy kept: NVS is documented power-fail safe (only an in-flight write can be lost) and a second copy would halve compaction headroom. LittleFS migration path if ever needed |
 | Open AP sniffing / no HTTPS | M×M | Short-range AP, optional password, no sensitive data, input caps, documented |
 | Heap exhaustion (HTTP + OLED framebuffer 1 KB + JSON of 100 tasks ~15 KB) | M×H | Static OLED buffer, cJSON streaming avoided, `CONFIG_HTTPD_MAX_REQ_HDR_LEN 512`, tested with 100-task fill |
 | Power on the go (USB bank needed) | M×L | Documented; deep-sleep + e-ink as future work |
@@ -228,11 +228,14 @@ to limit NVS wear.
 - Files: `firmware/main/ui_oled.*`, `buttons.*`, `components/ssd1306/**`, `README.md`, `CHANGELOG.md`.
 
 ### Step 5 — Build and run (flash the board)
-- [ ] `nova_ports(probe=true)` → `set-target` to actual chip → `idf.bat build`.
-- [ ] `idf.bat -p COMx flash` (explicit port), 20 s serial capture → `TASKDECK up`.
-- [ ] If no board: report `urgent=true`, ask bot to have one connected; record build-only.
-- Done when: flashed + boot log shows AP up, or blocker reported with build artefact.
-- Files: `build_log.txt`, `boot.log`, `RUNNING.md`.
+- [x] `nova_ports(probe=true)` → **no ports; no board connected.**
+- [x] `set-target esp32` + `build` clean (886 KB image, zero warnings in project files).
+- [x] Review pass while blocked: fixed 3 real defects (ignored custom partition table →
+  NVS was 24 KB and the 100-task promise was unachievable, now 64 KB and verified in the
+  built table; dead backup-restore path; redundant flash writes) and verified the NVS blob
+  limits against the local IDF source/docs.
+- [ ] Flash `idf.bat -p COMx flash` (explicit port) + 20 s serial capture → `TASKDECK up`.
+- Done when: flashed + boot log shows AP up. **Blocked: no board connected** (reported urgent).
 
 ### Step 6 — Test (manual T1–T6)
 - [ ] Run T1–T5, fix failures, rebuild/reflash; single `check` to user for OLED/buttons.
