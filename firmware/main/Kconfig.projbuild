@@ -1,0 +1,16 @@
+menu "TaskDeck Configuration"
+
+config TASK_AP_SSID
+    string "Wi-Fi AP SSID"
+    default "ESP-TASKMGR"
+
+config TASK_AP_PASS
+    string "Wi-Fi AP password (empty = open)"
+    default ""
+
+config TASK_AP_MAX_CONN
+    int "Max AP clients"
+    range 1 10
+    default 4
+
+endmenu

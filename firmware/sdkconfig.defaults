@@ -1,0 +1,4 @@
+# TaskDeck defaults (overridable via menuconfig / sdkconfig)
+CONFIG_TASK_AP_SSID="ESP-TASKMGR"
+CONFIG_TASK_AP_PASS=""
+CONFIG_TASK_AP_MAX_CONN=4
